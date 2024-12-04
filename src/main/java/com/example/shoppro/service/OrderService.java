@@ -1,10 +1,12 @@
 package com.example.shoppro.service;
 
 import com.example.shoppro.constant.OrderStatus;
+import com.example.shoppro.dto.CartOrderDTO;
 import com.example.shoppro.dto.OrderDTO;
 import com.example.shoppro.dto.OrderHistDTO;
 import com.example.shoppro.dto.OrderItemDTO;
 import com.example.shoppro.entity.*;
+import com.example.shoppro.repository.CartItemRepository;
 import com.example.shoppro.repository.ItemRepository;
 import com.example.shoppro.repository.MemberRepository;
 import com.example.shoppro.repository.OrderRepository;
@@ -16,6 +18,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.thymeleaf.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -32,12 +35,67 @@ public class OrderService {
     private final MemberRepository memberRepository;
 
 
+
     //주문 order, orderItem
     // 주문할 아이템 , 주문할 수량 , 주문하는 사람 이런게 있는게 아니라
     // 위에 내용이 있는 주문리스트만 필요
 
     // 단 주문목록들이 들어있는 주문row한개는 누구의 주문인지 알기위해서
     // email을 받는다.
+
+
+    //내 주문이 맞는지 체크
+    public boolean validateOrder(Long orderId, String email){
+
+        Member member =
+                memberRepository.findByEmail(email);
+
+        Order order =
+                orderRepository.findById(orderId)
+                        .orElseThrow(EntityNotFoundException::new);
+        //주문id로 찾은 주문테이블의 회원 참조email과  현재 로그인 한사람을 비교
+        if(  !StringUtils.equals(member.getEmail() , order.getMember().getEmail() )){
+            return false;
+        }
+
+        return true;
+
+
+    }
+
+
+    //주문 취소
+    public void cancelOrder(Long orderId){
+        //삭제할 번호를 받아서 삭제
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(EntityNotFoundException::new);
+        //주문상태인 orderStatus를 주문취소상태로 변경
+        order.setOrderStatus(OrderStatus.CANCEL);
+        //주문 자식인 주문아이템들의 주문수량을 가지고 item의 주문수량에 더한다.
+
+        for(OrderItem orderItem   :   order.getOrderItemList()  ){
+
+            orderItem.getItem().setStockNumber(
+
+                    orderItem.getItem().getStockNumber() + orderItem.getCount()
+
+            );
+        }
+
+        //자식을 하지 않고 주문취소만 만든다 데이터가 쌓인다.
+
+
+
+
+
+
+
+
+
+
+    }
+
 
     public Long order(OrderDTO orderDTO, String email){   //principal.getName()로 가져온다. 로그인을 했다면
         //현재 선택한 아이템의 id는 orderDTO로 들어온다 이값으로 판매중인 item Entity를 가져온다.
@@ -67,7 +125,7 @@ public class OrderService {
             order.setMember(member);    //구매한 사람 email로 찾아온 entity객체
 
             order.setOrderItemList(orderItem); //주문목록 이건 새로 만든 setOrderItemList이다.
-            //어떻게 만들었는지 Order객체를 참조할 것   그리고 아래 저장직전 주석 참조 
+            //어떻게 만들었는지 Order객체를 참조할 것   그리고 아래 저장직전 주석 참조
 
             order.setOrderStatus(OrderStatus.ORDER);     //주문상태
             order.setOrderDate(LocalDateTime.now());    //주문시간
@@ -96,6 +154,44 @@ public class OrderService {
     }
 
 
+    public Long orders(List<OrderDTO> orderDTOList, String email){
+
+        //주문을 했다면 판매하고 있는 상품의 수량 변경
+        
+        
+        Member member = memberRepository.findByEmail(email);
+        List<OrderItem> orderItemList = new ArrayList<>();
+        Order  order = new Order();
+
+        for(OrderDTO orderDTO   : orderDTOList){
+            Item item =
+            itemRepository.findById(orderDTO.getItemId())
+                    .orElseThrow(EntityNotFoundException::new);
+
+
+            OrderItem orderItem = new OrderItem();
+            orderItem.setItem(item);
+            orderItem.setCount(orderDTO.getCount()  );
+            orderItem.setOrderPrice(item.getPrice());
+            orderItem.setOrder(order);
+
+            item.setStockNumber(item.getStockNumber()   - orderDTO.getCount() );
+
+            orderItemList.add(orderItem);
+
+        }
+        order.setMember(member);
+        order.setOrderStatus(OrderStatus.ORDER);
+        order.setOrderDate(LocalDateTime.now());
+        order.setOrderItemList(orderItemList);
+
+        orderRepository.save(order);
+
+        return order.getId();
+
+    }
+
+
     //구매이력
     public Page<OrderHistDTO> getOrderList(String email, Pageable pageable) {
         //repository에서 필요한 email
@@ -115,7 +211,7 @@ public class OrderService {
 
             OrderHistDTO orderHistDTO = new OrderHistDTO();
             orderHistDTO.setOrderId(order.getId());
-            orderHistDTO.setOrderDate(order.getOrderDate().toString());
+            orderHistDTO.setOrderDate(order.getOrderDate());
             orderHistDTO.setOrderStatus(order.getOrderStatus());
 
             List<OrderItem> orderItemList = order.getOrderItemList();
@@ -149,5 +245,7 @@ public class OrderService {
         }
         return new PageImpl<OrderHistDTO>(orderHistDTOList, pageable, totalCount);
     }
+
+
 
 }

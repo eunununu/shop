@@ -10,9 +10,14 @@
 <body>
 
     <th:block layout:fragment="content">
-        <div>
-            zzzzzzzz
+
+        <div class="row">
+            <form action="/category/register" method="post">
+                카테고리명 : <input type="text" name="caname">
+                <button>카테고리 저장</button>
+            </form>
         </div>
+        <hr>
 
     </th:block>
 
