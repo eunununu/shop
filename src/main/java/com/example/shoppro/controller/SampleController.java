@@ -61,5 +61,10 @@ public class SampleController {
         return "redirect:/sample/sample";
     }
 
+    @PostMapping("/category/register")
+    public String save(){
+
+    }
+
 
 }

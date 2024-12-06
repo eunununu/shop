@@ -32,8 +32,13 @@ public class SecurityConfig {
                                 .requestMatchers("/admin/**").hasRole("ADMIN")
                                 .requestMatchers("/user/list").hasRole("ADMIN")
                                 .requestMatchers("/order/**").authenticated()
+<<<<<<< HEAD
 //                                .requestMatchers("/reply/register").authenticated()
 //                                .requestMatchers("/reply/update").authenticated()
+=======
+                              //  .requestMatchers("/reply/register").authenticated()
+                              //  .requestMatchers("/reply/update").authenticated()
+>>>>>>> ed2b8e65912c81fd6596945bde5e9b8c04f050d7
                                 .anyRequest().permitAll()       // 그외 다 열어
 //                            .anyRequest().authenticated()   //그 이외에는 다 로그인해서 접속해
 
